@@ -21,10 +21,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/ws/**").permitAll() // Allow WebSocket connections
-                .anyRequest().authenticated()
+                .anyRequest().permitAll() // Permit all APIs for testing
             )
-            .csrf(csrf -> csrf.disable()); // Disable CSRF for testing
+            .csrf(csrf -> csrf.disable()) // Disable CSRF for testing
+            .cors(cors -> cors.disable()); // Allow all origins for testing
 
         return http.build();
     }
