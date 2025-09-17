@@ -13,11 +13,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(webSocketServer(), "/ws") // WebSocket endpoint
+        // Change the endpoint to match the Android client and our plan
+        registry.addHandler(webSocketServer(), "/ws/location") 
                 .setAllowedOrigins("*"); // Allows connections from any frontend or mobile app
     }
 
     public WebSocketHandler webSocketServer() {
-        return new WebSocketServer(); // Custom WebSocket handler
+        return new WebSocketServer(); // Your custom WebSocket handler
     }
 }
