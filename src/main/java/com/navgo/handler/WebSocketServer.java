@@ -27,9 +27,23 @@ public class WebSocketServer extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
-        System.out.println("New connection: " + session.getId());
+public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+    System.out.println("New connection: " + session.getId());
+
+    // --- ADD THIS BLOCK ---
+    // Immediately send all current bus locations to the new client.
+    // This ensures the map shows the bus locations as soon as it loads.
+    if (!busLocations.isEmpty()) {
+        try {
+            String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
+            session.sendMessage(new TextMessage(allLocationsJson));
+            System.out.println("Sent initial locations to new session: " + session.getId());
+        } catch (Exception e) {
+            System.err.println("Error sending initial locations: " + e.getMessage());
+        }
     }
+    // --- END OF BLOCK ---
+}
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
