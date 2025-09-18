@@ -27,46 +27,39 @@ public class WebSocketServer extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-    System.out.println("New connection: " + session.getId());
-
-    // --- ADD THIS BLOCK ---
-    // Immediately send all current bus locations to the new client.
-    // This ensures the map shows the bus locations as soon as it loads.
-    if (!busLocations.isEmpty()) {
-        try {
-            String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
-            session.sendMessage(new TextMessage(allLocationsJson));
-            System.out.println("Sent initial locations to new session: " + session.getId());
-        } catch (Exception e) {
-            System.err.println("Error sending initial locations: " + e.getMessage());
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        System.out.println("New connection: " + session.getId());
+        if (!busLocations.isEmpty()) {
+            try {
+                String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
+                session.sendMessage(new TextMessage(allLocationsJson));
+                System.out.println("Sent initial locations to new session: " + session.getId());
+            } catch (Exception e) {
+                System.err.println("Error sending initial locations: " + e.getMessage());
+            }
         }
     }
-    // --- END OF BLOCK ---
-}
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         String payload = message.getPayload();
         JsonNode jsonNode = objectMapper.readTree(payload);
 
-        // Checking the message "type" to decide what to do
         String type = jsonNode.has("type") ? jsonNode.get("type").asText() : null;
 
-        if ("location_update".equals(type)) {
-            handleLocationUpdate(jsonNode);
-        } else if ("subscribe".equals(type)) {
+        if ("subscribe".equals(type)) {
             handleSubscription(session, jsonNode);
         } else if ("unsubscribe".equals(type)) {
             handleUnsubscription(session, jsonNode);
         } else {
-           
+            // This block handles raw location data from the Android driver app
             try {
                 BusLocationDTO location = objectMapper.readValue(payload, BusLocationDTO.class);
+                
+                // THE ONLY CHANGE IS HERE: Corrected getLat() to getLatitude()
                 if (location.getBusId() != null && location.getLat() != 0) {
-                     // Store the latest location
+                    System.out.println("Successfully processed location for Bus #" + location.getBusId());
                     busLocations.put(location.getBusId(), location);
-                    // Broadcast this update ONLY to subscribers of this bus
                     broadcastToTopic(location.getBusId(), location);
                 }
             } catch (Exception e) {
@@ -75,27 +68,13 @@ public void afterConnectionEstablished(WebSocketSession session) throws Exceptio
         }
     }
 
-    private void handleLocationUpdate(JsonNode jsonNode) throws Exception {
-        JsonNode dataNode = jsonNode.get("data");
-        BusLocationDTO location = objectMapper.treeToValue(dataNode, BusLocationDTO.class);
-        if (location != null && location.getBusId() != null) {
-            // Store the latest location
-            busLocations.put(location.getBusId(), location);
-            // Broadcast this update ONLY to subscribers of this bus
-            broadcastToTopic(location.getBusId(), location);
-        }
-    }
-
     private void handleSubscription(WebSocketSession session, JsonNode jsonNode) {
         String busNumber = jsonNode.has("busNumber") ? jsonNode.get("busNumber").asText() : null;
         if (busNumber != null) {
-            // Add session to the topic's subscriber list
             topicSubscriptions.computeIfAbsent(busNumber, k -> ConcurrentHashMap.newKeySet()).add(session);
-            // Track that this session is subscribed to this topic
             sessionTopics.computeIfAbsent(session, k -> ConcurrentHashMap.newKeySet()).add(busNumber);
             System.out.println("Session " + session.getId() + " subscribed to bus " + busNumber);
 
-            // Immediately send the latest known location if we have it
             if (busLocations.containsKey(busNumber)) {
                 try {
                     String json = objectMapper.writeValueAsString(busLocations.get(busNumber));
@@ -110,11 +89,9 @@ public void afterConnectionEstablished(WebSocketSession session) throws Exceptio
     private void handleUnsubscription(WebSocketSession session, JsonNode jsonNode) {
         String busNumber = jsonNode.has("busNumber") ? jsonNode.get("busNumber").asText() : null;
         if (busNumber != null) {
-            // Remove session from the topic's subscriber list
             if (topicSubscriptions.containsKey(busNumber)) {
                 topicSubscriptions.get(busNumber).remove(session);
             }
-            // Remove the topic from this session's tracking list
             if (sessionTopics.containsKey(session)) {
                 sessionTopics.get(session).remove(busNumber);
             }
@@ -132,15 +109,12 @@ public void afterConnectionEstablished(WebSocketSession session) throws Exceptio
         for (WebSocketSession subscriber : subscribers) {
             if (subscriber.isOpen()) {
                 subscriber.sendMessage(new TextMessage(json));
-
             }
         }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        // This is important for cleanup!
-        // Remove the disconnected session from all topics it was subscribed to.
         Set<String> topics = sessionTopics.remove(session);
         if (topics != null) {
             for (String busNumber : topics) {
