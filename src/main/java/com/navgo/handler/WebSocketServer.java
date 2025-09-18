@@ -1,5 +1,6 @@
 package com.navgo.handler;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navgo.dto.BusLocationDTO;
@@ -18,7 +19,10 @@ public class WebSocketServer extends TextWebSocketHandler {
     private final Map<String, BusLocationDTO> busLocations = new ConcurrentHashMap<>();
     private final Map<String, Set<WebSocketSession>> topicSubscriptions = new ConcurrentHashMap<>();
     private final Map<WebSocketSession, Set<String>> sessionTopics = new ConcurrentHashMap<>();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+     private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
