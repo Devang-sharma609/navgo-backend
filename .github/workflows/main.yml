@@ -3,7 +3,7 @@ name: Keep Render Service Awake
 on:
   schedule:
     # Runs every 10 minutes
-    - cron: "*/14 * * * *"
+    - cron: "*/20 * * * *"
   workflow_dispatch: # allows manual run from GitHub UI
 
 jobs:
