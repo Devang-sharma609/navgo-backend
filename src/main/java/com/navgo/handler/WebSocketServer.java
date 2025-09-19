@@ -9,7 +9,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,14 +18,21 @@ public class WebSocketServer extends TextWebSocketHandler {
     private final Map<String, BusLocationDTO> busLocations = new ConcurrentHashMap<>();
     private final Map<String, Set<WebSocketSession>> topicSubscriptions = new ConcurrentHashMap<>();
     private final Map<WebSocketSession, Set<String>> sessionTopics = new ConcurrentHashMap<>();
-     private final ObjectMapper objectMapper = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         System.out.println("New connection: " + session.getId());
+
+        String query = session.getUri().getQuery(); // e.g., "busNumber=17"
+        String busNumber = null;
+
+    if (query != null && query.startsWith("busNumber=")) {
+        busNumber = query.split("=")[1];
+    }
+
         if (!busLocations.isEmpty()) {
             try {
                 String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
@@ -50,34 +56,32 @@ public class WebSocketServer extends TextWebSocketHandler {
         } else if ("unsubscribe".equals(type)) {
             handleUnsubscription(session, jsonNode);
         } else {
-            // This block handles raw location data from the Android driver app
+            // Raw location data from the Android driver app
             try {
                 BusLocationDTO location = objectMapper.readValue(payload, BusLocationDTO.class);
-                
-                // ** THE FIX IS HERE: Using the correct method names from your DTO **
-                if (location.getBusId() != null && location.getLat() != 0) {
-                    System.out.println("✅ Successfully processed location for Bus #" + location.getBusId());
-                    busLocations.put(location.getBusId(), location);
-                    broadcastToTopic(location.getBusId(), location);
+
+                if (location.getBusNumber() != null && location.getLat() != 0) {
+                    System.out.println(" Successfully processed location for Bus #" + location.getBusNumber());
+                    busLocations.put(location.getBusNumber(), location);
+                    broadcastToTopic(location.getBusNumber(), location);
                 }
             } catch (Exception e) {
-                System.out.println("❌ Received a message that could not be parsed. Payload: " + payload);
+                System.out.println("   Received a message that could not be parsed. Payload: " + payload);
                 System.err.println("   The specific error was: " + e.getMessage());
             }
         }
     }
 
     private void handleSubscription(WebSocketSession session, JsonNode jsonNode) {
-        // The frontend sends "busNumber", but our DTO and logic use "busId"
-        String busId = jsonNode.has("busNumber") ? jsonNode.get("busNumber").asText() : null;
-        if (busId != null) {
-            topicSubscriptions.computeIfAbsent(busId, k -> ConcurrentHashMap.newKeySet()).add(session);
-            sessionTopics.computeIfAbsent(session, k -> ConcurrentHashMap.newKeySet()).add(busId);
-            System.out.println("Session " + session.getId() + " subscribed to bus " + busId);
+        String busNumber = jsonNode.has("busNumber") ? jsonNode.get("busNumber").asText() : null;
+        if (busNumber != null) {
+            topicSubscriptions.computeIfAbsent(busNumber, k -> ConcurrentHashMap.newKeySet()).add(session);
+            sessionTopics.computeIfAbsent(session, k -> ConcurrentHashMap.newKeySet()).add(busNumber);
+            System.out.println("Session " + session.getId() + " subscribed to bus " + busNumber);
 
-            if (busLocations.containsKey(busId)) {
+            if (busLocations.containsKey(busNumber)) {
                 try {
-                    String json = objectMapper.writeValueAsString(busLocations.get(busId));
+                    String json = objectMapper.writeValueAsString(busLocations.get(busNumber));
                     session.sendMessage(new TextMessage(json));
                 } catch (Exception e) {
                     System.err.println("Error sending initial location data: " + e.getMessage());
@@ -87,20 +91,20 @@ public class WebSocketServer extends TextWebSocketHandler {
     }
 
     private void handleUnsubscription(WebSocketSession session, JsonNode jsonNode) {
-        String busId = jsonNode.has("busNumber") ? jsonNode.get("busNumber").asText() : null;
-        if (busId != null) {
-            if (topicSubscriptions.containsKey(busId)) {
-                topicSubscriptions.get(busId).remove(session);
+        String busNumber = jsonNode.has("busNumber") ? jsonNode.get("busNumber").asText() : null;
+        if (busNumber != null) {
+            if (topicSubscriptions.containsKey(busNumber)) {
+                topicSubscriptions.get(busNumber).remove(session);
             }
             if (sessionTopics.containsKey(session)) {
-                sessionTopics.get(session).remove(busId);
+                sessionTopics.get(session).remove(busNumber);
             }
-            System.out.println("Session " + session.getId() + " unsubscribed from bus " + busId);
+            System.out.println("Session " + session.getId() + " unsubscribed from bus " + busNumber);
         }
     }
 
-    private void broadcastToTopic(String busId, BusLocationDTO location) throws Exception {
-        Set<WebSocketSession> subscribers = topicSubscriptions.get(busId);
+    private void broadcastToTopic(String busNumber, BusLocationDTO location) throws Exception {
+        Set<WebSocketSession> subscribers = topicSubscriptions.get(busNumber);
         if (subscribers == null || subscribers.isEmpty()) {
             return; // No one is listening for this bus
         }
@@ -117,9 +121,9 @@ public class WebSocketServer extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         Set<String> topics = sessionTopics.remove(session);
         if (topics != null) {
-            for (String busId : topics) {
-                if (topicSubscriptions.containsKey(busId)) {
-                    topicSubscriptions.get(busId).remove(session);
+            for (String busNumber : topics) {
+                if (topicSubscriptions.containsKey(busNumber)) {
+                    topicSubscriptions.get(busNumber).remove(session);
                 }
             }
         }

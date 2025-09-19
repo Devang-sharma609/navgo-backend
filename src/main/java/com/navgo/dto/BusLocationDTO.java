@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class BusLocationDTO {
 
     @JsonProperty("busNumber")
-    private String busId;
+    private String busNumber;
 
     @JsonProperty("latitude")
     private double lat;
@@ -35,8 +35,8 @@ public class BusLocationDTO {
 
     public BusLocationDTO() {}
 
-    public BusLocationDTO(String busId, double lat, double lon, double accuracy, double speed, double bearing, long timestamp) {
-        this.busId = busId;
+    public BusLocationDTO(String busNumber, double lat, double lon, double accuracy, double speed, double bearing, long timestamp) {
+        this.busNumber = busNumber;
         this.lat = lat;
         this.lon = lon;
         this.accuracy = accuracy;
@@ -45,7 +45,7 @@ public class BusLocationDTO {
         this.timestamp = timestamp;
     }
 
-    public String getBusId() { return busId; }
+    public String getBusNumber() { return busNumber; }
     public double getLat() { return lat; }
     public double getLon() { return lon; }
     public double getAccuracy() { return accuracy; }
