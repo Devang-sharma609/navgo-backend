@@ -22,27 +22,36 @@ public class WebSocketServer extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        System.out.println("New connection: " + session.getId());
+    // In WebSocketServer.java
 
-        String query = session.getUri().getQuery(); // e.g., "busNumber=17"
-        String busNumber = null;
+@Override
+public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+    String query = session.getUri().getQuery(); // e.g., "busNumber=17"
+    String busNumber = null;
 
     if (query != null && query.startsWith("busNumber=")) {
         busNumber = query.split("=")[1];
     }
 
-        if (!busLocations.isEmpty()) {
-            try {
-                String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
-                session.sendMessage(new TextMessage(allLocationsJson));
-                System.out.println("Sent initial locations to new session: " + session.getId());
-            } catch (Exception e) {
-                System.err.println("Error sending initial locations: " + e.getMessage());
-            }
+    // --- CHANGE IS HERE ---
+    // Now we actually USE the busNumber for logging
+    if (busNumber != null) {
+        System.out.println("Driver for Bus #" + busNumber + " connected with session ID: " + session.getId());
+    } else {
+        System.out.println("Web client connected with session ID: " + session.getId());
+    }
+
+    // This part remains the same, sending initial locations to the new client
+    if (!busLocations.isEmpty()) {
+        try {
+            String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
+            session.sendMessage(new TextMessage(allLocationsJson));
+            System.out.println("Sent initial locations to new session: " + session.getId());
+        } catch (Exception e) {
+            System.err.println("Error sending initial locations: " + e.getMessage());
         }
     }
+}
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
