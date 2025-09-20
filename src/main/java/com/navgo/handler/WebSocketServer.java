@@ -1,5 +1,10 @@
 package com.navgo.handler;
 
+/**
+ * @author Akash Bais
+ *
+ */
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,9 +14,13 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class WebSocketServer extends TextWebSocketHandler {
 
@@ -22,36 +31,37 @@ public class WebSocketServer extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    // In WebSocketServer.java
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-@Override
-public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-    String query = session.getUri().getQuery(); // e.g., "busNumber=17"
-    String busNumber = null;
-
-    if (query != null && query.startsWith("busNumber=")) {
-        busNumber = query.split("=")[1];
+    public WebSocketServer() {
+        scheduler.scheduleAtFixedRate(this::checkStaleBuses, 30, 30, TimeUnit.SECONDS);
     }
 
-    // --- CHANGE IS HERE ---
-    // Now we actually USE the busNumber for logging
-    if (busNumber != null) {
-        System.out.println("Driver for Bus #" + busNumber + " connected with session ID: " + session.getId());
-    } else {
-        System.out.println("Web client connected with session ID: " + session.getId());
-    }
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        String query = session.getUri().getQuery(); // e.g., "busNumber=17"
+        String busNumber = null;
 
-    // This part remains the same, sending initial locations to the new client
-    if (!busLocations.isEmpty()) {
-        try {
-            String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
-            session.sendMessage(new TextMessage(allLocationsJson));
-            System.out.println("Sent initial locations to new session: " + session.getId());
-        } catch (Exception e) {
-            System.err.println("Error sending initial locations: " + e.getMessage());
+        if (query != null && query.startsWith("busNumber=")) {
+            busNumber = query.split("=")[1];
+        }
+
+        if (busNumber != null) {
+            System.out.println("Driver for Bus #" + busNumber + " connected with session ID: " + session.getId());
+        } else {
+            System.out.println("Web client connected with session ID: " + session.getId());
+        }
+
+        if (!busLocations.isEmpty()) {
+            try {
+                String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
+                session.sendMessage(new TextMessage(allLocationsJson));
+                System.out.println("Sent initial locations to new session: " + session.getId());
+            } catch (Exception e) {
+                System.err.println("Error sending initial locations: " + e.getMessage());
+            }
         }
     }
-}
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
@@ -78,6 +88,42 @@ public void afterConnectionEstablished(WebSocketSession session) throws Exceptio
                 System.out.println("   Received a message that could not be parsed. Payload: " + payload);
                 System.err.println("   The specific error was: " + e.getMessage());
             }
+        }
+    }
+
+    private void checkStaleBuses() {
+        System.out.println("Running stale bus check...");
+        long currentTime = System.currentTimeMillis();
+        long staleThreshold = 60000; // 60 seconds
+
+        // Find and remove buses that haven't sent an update in over a minute
+        boolean removed = busLocations.values().removeIf(
+            bus -> (currentTime - bus.getTimestamp()) > staleThreshold
+        );
+
+        // If a bus was removed, broadcast the new, clean list to all web clients
+        if (removed) {
+            System.out.println("Stale buses found and removed. Broadcasting updated list.");
+            try {
+                broadcastFullBusList();
+            } catch (IOException e) {
+                System.err.println("Error broadcasting after removing stale buses: " + e.getMessage());
+            }
+        }
+    }
+
+    // --- ADD THIS NEW HELPER METHOD ---
+    private void broadcastFullBusList() throws IOException {
+        String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
+        
+        // Create a set of unique sessions that are subscribed to any topic
+        Set<WebSocketSession> allSubscribers = ConcurrentHashMap.newKeySet();
+        topicSubscriptions.values().forEach(allSubscribers::addAll);
+
+        for (WebSocketSession session : allSubscribers) {
+             if (session.isOpen()) {
+                session.sendMessage(new TextMessage(allLocationsJson));
+             }
         }
     }
 

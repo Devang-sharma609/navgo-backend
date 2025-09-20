@@ -1,0 +1,35 @@
+# Maven / build output
+target/
+*.jar
+*.war
+*.ear
+
+# Maven wrapper binaries
+.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+logs/
+*.out
+
+# IDE specific
+.idea/
+.vscode/
+*.iml
+*.class
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# Env/config
+*.env
+.env.*
