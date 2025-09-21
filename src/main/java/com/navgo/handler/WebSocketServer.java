@@ -1,10 +1,5 @@
 package com.navgo.handler;
 
-/**
- * @author Akash Bais
- *
- */
-
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +34,7 @@ public class WebSocketServer extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String query = session.getUri().getQuery(); // e.g., "busNumber=17"
+        String query = session.getUri().getQuery();
         String busNumber = null;
 
         if (query != null && query.startsWith("busNumber=")) {
@@ -75,10 +70,8 @@ public class WebSocketServer extends TextWebSocketHandler {
         } else if ("unsubscribe".equals(type)) {
             handleUnsubscription(session, jsonNode);
         } else {
-            // Raw location data from the Android driver app
             try {
                 BusLocationDTO location = objectMapper.readValue(payload, BusLocationDTO.class);
-
                 if (location.getBusNumber() != null && location.getLat() != 0) {
                     System.out.println(" Successfully processed location for Bus #" + location.getBusNumber());
                     busLocations.put(location.getBusNumber(), location);
@@ -96,12 +89,10 @@ public class WebSocketServer extends TextWebSocketHandler {
         long currentTime = System.currentTimeMillis();
         long staleThreshold = 60000; // 60 seconds
 
-        // Find and remove buses that haven't sent an update in over a minute
         boolean removed = busLocations.values().removeIf(
             bus -> (currentTime - bus.getTimestamp()) > staleThreshold
         );
 
-        // If a bus was removed, broadcast the new, clean list to all web clients
         if (removed) {
             System.out.println("Stale buses found and removed. Broadcasting updated list.");
             try {
@@ -112,11 +103,8 @@ public class WebSocketServer extends TextWebSocketHandler {
         }
     }
 
-    // --- ADD THIS NEW HELPER METHOD ---
     private void broadcastFullBusList() throws IOException {
         String allLocationsJson = objectMapper.writeValueAsString(busLocations.values());
-        
-        // Create a set of unique sessions that are subscribed to any topic
         Set<WebSocketSession> allSubscribers = ConcurrentHashMap.newKeySet();
         topicSubscriptions.values().forEach(allSubscribers::addAll);
 
@@ -161,9 +149,8 @@ public class WebSocketServer extends TextWebSocketHandler {
     private void broadcastToTopic(String busNumber, BusLocationDTO location) throws Exception {
         Set<WebSocketSession> subscribers = topicSubscriptions.get(busNumber);
         if (subscribers == null || subscribers.isEmpty()) {
-            return; // No one is listening for this bus
+            return;
         }
-
         String json = objectMapper.writeValueAsString(location);
         for (WebSocketSession subscriber : subscribers) {
             if (subscriber.isOpen()) {
