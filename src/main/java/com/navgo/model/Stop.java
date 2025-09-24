@@ -20,4 +20,7 @@ public class Stop {
     @OneToMany(mappedBy = "stop", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StopShiftTime> shiftTimes;
 
+    @ManyToMany(mappedBy = "stops")
+    private List<Route> routes;
+
 }
