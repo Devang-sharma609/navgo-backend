@@ -29,8 +29,14 @@ public class BusBoardController {
     
     @GetMapping("/info")
 	public ResponseEntity<List<BusBoardInfo>> getBusBoard() {
-		List<BusBoardInfo> allBusBoardInfo = busBoardInfoService.getAllBusBoardInfo();
-		return ResponseEntity.ok(allBusBoardInfo);
+		try {
+			List<BusBoardInfo> allBusBoardInfo = busBoardInfoService.getAllBusBoardInfo();
+			return ResponseEntity.ok(allBusBoardInfo);
+		} catch (Exception e) {
+			System.err.println("Error in getBusBoard endpoint: " + e.getMessage());
+			e.printStackTrace();
+			return ResponseEntity.internalServerError().build();
+		}
 	}
     
     
