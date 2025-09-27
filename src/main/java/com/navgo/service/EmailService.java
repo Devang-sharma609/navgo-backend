@@ -6,11 +6,6 @@ package com.navgo.service;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-
-import com.navgo.util.OTPService;
-
 import jakarta.mail.Authenticator;
 import jakarta.mail.PasswordAuthentication;
 import jakarta.mail.Session;

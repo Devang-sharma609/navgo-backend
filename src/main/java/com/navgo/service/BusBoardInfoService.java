@@ -1,76 +1,53 @@
-/**
- * 
- */
 package com.navgo.service;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.navgo.model.BusAllotment;
 import com.navgo.model.BusBoardInfo;
+import com.navgo.model.RouteStop;
 import com.navgo.model.Stop;
 import com.navgo.repository.BusAllotmentRepository;
-import com.navgo.repository.StopRepository;
 
-/**
- * @author Akash Bais
- *
- */
 @Service
 public class BusBoardInfoService {
 
     @Autowired
     private BusAllotmentRepository busAllotmentRepository;
 
-    @Autowired
-    private StopRepository stopRepository;
-
     @Transactional(readOnly = true)
-    public List<BusBoardInfo> getAllBusBoardInfo() {
-        try {
-            List<BusBoardInfo> basicInfoList = busAllotmentRepository.findAllBusBoardInfo();
-            
-            if (basicInfoList == null || basicInfoList.isEmpty()) {
-                return List.of(); // Return empty list if no data found
-            }
-            
-            // Get unique route names
-            List<String> routeNames = basicInfoList.stream()
-                .map(BusBoardInfo::getRouteName)
-                .filter(routeName -> routeName != null && !routeName.trim().isEmpty())
-                .distinct()
+    public List<BusBoardInfo> getTodaysBusBoardInfo() {
+        // 1. Fetch all of today's allotments in one efficient query.
+        List<BusAllotment> todaysAllotments = busAllotmentRepository.findFullAllotmentInfoByDate(LocalDate.now());
+
+        // 2. Map the list of BusAllotment entities to a list of BusBoardInfo DTOs.
+        return todaysAllotments.stream()
+                .map(this::mapToBusBoardInfo)
                 .collect(Collectors.toList());
-            
-            // Create a map of route name to stops
-            Map<String, List<Stop>> routeStopsMap = routeNames.stream()
-                .collect(Collectors.toMap(
-                    routeName -> routeName,
-                    routeName -> {
-                        try {
-                            List<Stop> stops = stopRepository.findStopsByRouteName(routeName);
-                            return stops != null ? stops : List.of();
-                        } catch (Exception e) {
-                            System.err.println("Error fetching stops for route: " + routeName + ", Error: " + e.getMessage());
-                            return List.of();
-                        }
-                    }
-                ));
-            
-            // Populate stops for each bus board info
-            return basicInfoList.stream().map(info -> {
-                List<Stop> stops = routeStopsMap.get(info.getRouteName());
-                info.setStops(stops != null ? stops : List.of());
-                return info;
-            }).collect(Collectors.toList());
-            
-        } catch (Exception e) {
-            System.err.println("Error in getAllBusBoardInfo: " + e.getMessage());
-            e.printStackTrace();
-            return List.of(); // Return empty list in case of error
-        }
+    }
+
+    /**
+     * A helper method to convert a BusAllotment entity into a BusBoardInfo DTO.
+     */
+    private BusBoardInfo mapToBusBoardInfo(BusAllotment allotment) {
+        // Get the ordered list of Stops by mapping over the RouteStop entities.
+        // The @OrderBy annotation on the Route entity guarantees this list is in the correct sequence.
+        List<Stop> orderedStops = allotment.getRoute().getRouteStops().stream()
+                .map(RouteStop::getStop)
+                .collect(Collectors.toList());
+
+        // Create and return the BusBoardInfo DTO with all the necessary data.
+        return new BusBoardInfo(
+                allotment.getBusDetail().getBusUniversityNumber(),
+                allotment.getRoute().getRouteName(),
+                allotment.getDriver().getDriverName(),
+                allotment.getDriver().getDriverNumber(),
+                orderedStops
+        );
     }
 }

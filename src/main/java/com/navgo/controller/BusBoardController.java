@@ -1,25 +1,16 @@
-/**
- * 
- */
 package com.navgo.controller;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.navgo.service.BusBoardInfoService;
 import com.navgo.model.BusBoardInfo;
 
-/**
- * @author Akash Bais
- *
- */
 @RestController
 @RequestMapping("/bus-board")
 public class BusBoardController {
@@ -27,17 +18,14 @@ public class BusBoardController {
     @Autowired
     private BusBoardInfoService busBoardInfoService;
     
-    @GetMapping("/info")
-	public ResponseEntity<List<BusBoardInfo>> getBusBoard() {
-		try {
-			List<BusBoardInfo> allBusBoardInfo = busBoardInfoService.getAllBusBoardInfo();
-			return ResponseEntity.ok(allBusBoardInfo);
-		} catch (Exception e) {
-			System.err.println("Error in getBusBoard endpoint: " + e.getMessage());
-			e.printStackTrace();
-			return ResponseEntity.internalServerError().build();
-		}
-	}
-    
-    
+    @GetMapping("/info/today")
+    public ResponseEntity<List<BusBoardInfo>> getTodaysBusBoard() {
+        try {
+            List<BusBoardInfo> todaysBusBoardInfo = busBoardInfoService.getTodaysBusBoardInfo();
+            return ResponseEntity.ok(todaysBusBoardInfo);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }

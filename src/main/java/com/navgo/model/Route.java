@@ -2,9 +2,15 @@ package com.navgo.model;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.ArrayList; // Import ArrayList
 import java.util.List;
 
 @Entity
+@Getter
+@Setter
 public class Route {
 
     @Id
@@ -13,54 +19,29 @@ public class Route {
 
     private String routeName;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "route_stop",
-        joinColumns = @JoinColumn(name = "routeId"),
-        inverseJoinColumns = @JoinColumn(name = "stopId")
+    @OneToMany(
+        mappedBy = "route",
+        cascade = CascadeType.ALL, // This tells JPA to save/update/delete RouteStop when the Route is saved/updated/deleted
+        orphanRemoval = true // This removes RouteStop entities if they are removed from this list
     )
+    @OrderBy("stopSequence ASC")
     @JsonIgnore
-    private List<Stop> stops;
+    private List<RouteStop> routeStops = new ArrayList<>(); // Initialize the list to prevent errors
 
-    // Default constructor
     public Route() {
     }
 
-    // Constructor with parameters
     public Route(String routeName) {
         this.routeName = routeName;
     }
 
-    // Getters and setters
-    public int getRouteId() {
-        return routeId;
+    public void addStop(Stop stop, int sequence) {
+        RouteStop routeStop = new RouteStop();
+        routeStop.setRoute(this);   // this links routeId
+        routeStop.setStop(stop);    // this links stopId
+        routeStop.setStopSequence(sequence);
+    
+        this.routeStops.add(routeStop);
     }
-
-    public void setRouteId(int routeId) {
-        this.routeId = routeId;
-    }
-
-    public String getRouteName() {
-        return routeName;
-    }
-
-    public void setRouteName(String routeName) {
-        this.routeName = routeName;
-    }
-
-    public List<Stop> getStops() {
-        return stops;
-    }
-
-    public void setStops(List<Stop> stops) {
-        this.stops = stops;
-    }
-
-    @Override
-    public String toString() {
-        return "Route{" +
-                "routeId=" + routeId +
-                ", routeName='" + routeName + '\'' +
-                '}';
-    }
+    
 }
