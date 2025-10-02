@@ -3,16 +3,15 @@ package com.navgo.service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.navgo.dto.BusBoardInfo;
 import com.navgo.model.BusAllotment;
-import com.navgo.model.BusBoardInfo;
 import com.navgo.model.RouteStop;
 import com.navgo.model.Stop;
 import com.navgo.repository.BusAllotmentRepository;
+
 
 @Service
 public class BusBoardInfoService {
@@ -34,6 +33,7 @@ public class BusBoardInfoService {
     /**
      * A helper method to convert a BusAllotment entity into a BusBoardInfo DTO.
      */
+    
     private BusBoardInfo mapToBusBoardInfo(BusAllotment allotment) {
         // Get the ordered list of Stops by mapping over the RouteStop entities.
         // The @OrderBy annotation on the Route entity guarantees this list is in the correct sequence.
@@ -47,7 +47,7 @@ public class BusBoardInfoService {
                 allotment.getRoute().getRouteName(),
                 allotment.getDriver().getDriverName(),
                 allotment.getDriver().getDriverNumber(),
-                orderedStops
+                allotment.getLastUpdatedAt(), orderedStops
         );
     }
 }

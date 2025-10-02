@@ -1,6 +1,10 @@
 package com.navgo.service;
 
+import java.time.LocalDateTime;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import com.navgo.dto.BusAllotmentRequestDTO;
 import com.navgo.model.BusAllotment;
@@ -41,6 +45,7 @@ public class BusAllotmentService {
         newAllotment.setDriver(driver);
         newAllotment.setBusDetail(busDetail);
         newAllotment.setRoute(route);
+        newAllotment.setLastUpdatedAt(LocalDateTime.now());
         newAllotment.setAllotmentDate(requestDTO.getAllotmentDate());
 
         return allotmentRepository.save(newAllotment);

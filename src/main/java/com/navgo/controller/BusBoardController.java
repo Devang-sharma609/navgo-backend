@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.navgo.dto.BusBoardInfo;
 import com.navgo.service.BusBoardInfoService;
-import com.navgo.model.BusBoardInfo;
 
 @RestController
 @RequestMapping("/bus-board")

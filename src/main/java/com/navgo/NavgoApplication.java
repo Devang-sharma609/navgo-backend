@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import com.navgo.model.BusBoardInfo;
+import com.navgo.dto.BusBoardInfo;
 
 @SpringBootApplication
 public class NavgoApplication {
